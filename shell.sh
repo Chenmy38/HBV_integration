@@ -16,5 +16,6 @@ mkdir ../reference_genome/human_and_HBV_bwa_index_for_SurVirus
 gunzip ../reference_genome/fasta_files/UCSC/hg38.fa.gz
 cp ../reference_genome/fasta_files/UCSC/hg38.fa ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/hg38.fa
 bwa index ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/hg38.fa
-bwa index ../HBV_genome/human_and_HBV_bwa_index_for_SurVirus/Hepatitis_B_virus_subtype_ayw_complete_genome.fasta
-
+bwa index ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/Hepatitis_B_virus_subtype_ayw_complete_genome.fasta
+cat ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/hg38.fa ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/Hepatitis_B_virus_subtype_ayw_complete_genome.fasta > ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/human_HBV.fa
+bwa index ../reference_genome/human_and_HBV_bwa_index_for_SurVirus/human_HBV.fa

@@ -1,0 +1,62 @@
+---
+title: "Analysis of HBV integration events"
+author: "Mingyi_Chen"
+date: "2/21/2022"
+output: html_document
+---
+
+## Datasets and methods
+
+The whole genome sequencing (WGS) datasets used in this project are collected from HepG$2$-NTCP (AC$12$) cells infected by wild-type or X-minus HBV. The sequencing platform is Illumina NovaSeq $6000$. I use [SurVirus](https://doi.org/10.1093/nar/gkaa1237), a repeat-aware virus integration caller, to predict HBV integration sites in the human genome. The host reference dataset used in SurVirus is *homo sapiens* genome assembly [GRCh$38$ (hg$38$)](https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/), while the virus reference dataset is [U$95551.1.$HBV](https://www.ncbi.nlm.nih.gov/nuccore/U95551).  
+
+I used the R software to analyze integration events per million bases on human genome and integration breakpoints at different sites on HBV genome.
+
+## Results
+
+The SurVirus detected $23$ integration events in HBV-infected AC$12$ cells and $6$ integration events in X-minus-HBV-infected AC$12$ cells. 
+
+To analyze the distribution of HBV integration events across chromosomes, I retrieved lengths of chromosomes and counted numbers of integration events on each chromosome. Then, I obtained the number of integration events at a specific chromosome divided by the chromosome size of hg$38$ per million. Finally I visualized results in a bar plot.
+
+```{r data import, warning=F, message=F}
+library(tidyverse)
+library(BSgenome.Hsapiens.UCSC.hg38)
+# Data import
+hg38 <- BSgenome.Hsapiens.UCSC.hg38
+res_WT <- read_delim("data/WT.results.remapped.txt", delim = " ", col_names = F)
+res_XM <- read_delim("data/X.minus.results.remapped.txt", delim = " ", col_names = F)
+# Calculation
+dat_WT <- tibble(seqnames = str_split(res_WT[, 2] %>% unlist, "[:_]", simplify = T)[, 1], length_Mbp = seqlengths(hg38)[seqnames] / 10^6) %>% group_by(seqnames) %>% 
+  summarise(count = n(), length_Mbp = length_Mbp, integration_per_Mbp = count / length_Mbp) %>% distinct(seqnames, .keep_all = T)
+dat_XM <- tibble(seqnames = str_split(res_XM[, 2] %>% unlist, ":", simplify = T)[, 1], length_Mbp = seqlengths(hg38)[seqnames] / 10^6) %>% group_by(seqnames) %>% 
+  summarise(count = n(), length_Mbp = length_Mbp, integration_per_Mbp = count / length_Mbp) %>% distinct(seqnames, .keep_all = T)
+write_csv(dat_WT, "WT_integration_events_across_chromosomes.csv")
+write_csv(dat_XM, "X_minus_integration_events_across_chromosomes.csv")
+# Visualization
+dat_WT$seqnames <- with(dat_WT, fct_relevel(seqnames, levels = str_sort(seqnames, numeric = T)))
+dat_XM$seqnames <- with(dat_XM, fct_relevel(seqnames, levels = str_sort(seqnames, numeric = T)))
+dat_WT %>% ggplot(aes(seqnames, integration_per_Mbp)) + geom_col() + ylab("") + xlab("Chromosomes") + ggtitle("Integration events of WT HBV on the human genome per million bases") +
+  theme(text = element_text(family = "Times"), plot.title = element_text(hjust = 0.5))
+dat_XM %>% ggplot(aes(seqnames, integration_per_Mbp)) + geom_col() + ylab("") + xlab("Chromosomes") + ggtitle("Integration events of X-minus HBV on the human genome per million bases") +
+  theme(text = element_text(family = "Times"), plot.title = element_text(hjust = 0.5))
+```
+
+To analyze the distribution of integrated HBV reads across the viral genome, I calculated the coverage of each nucleotide in the viral genome and visualize results in a bar plot with a smoothed approximation line. 
+
+```{r integration breakpoints of HBV, message=F, warning=F}
+library(purrr)
+# Calculation
+WT_br <- str_split(res_WT[, 3] %>% unlist, ":", simplify = T)[, 3:4] %>% as.integer() %>% matrix(nrow = 23, ncol = 2) %>% as_tibble(); colnames(WT_br) <- c("from", "to")
+XM_br <- str_split(res_XM[, 3] %>% unlist, ":", simplify = T)[, 3:4] %>% as.integer() %>% matrix(nrow = 6, ncol = 2) %>% as_tibble(); colnames(XM_br) <- c("from", "to")
+# Visualization
+WT_br %>% pmap(.f = seq) %>% unlist %>% as_tibble() %>% count(value) %>% ggplot(aes(value, n)) + geom_col() + geom_smooth(method = "gam") + xlab("Positions") + ylab("Counts") +
+  theme(text = element_text(family = "Times"), plot.title = element_text(hjust = 0.5)) + ggtitle("Coverage of WT HBV genome")
+XM_br %>% pmap(.f = seq) %>% unlist %>% as_tibble() %>% count(value) %>% ggplot(aes(value, n)) + geom_col() + geom_smooth(method = "gam") + xlab("Positions") + ylab("Counts") +
+  theme(text = element_text(family = "Times"), plot.title = element_text(hjust = 0.5)) + ggtitle("Coverage of X-minus HBV genome")
+```
+
+```{r output, message=F, warning=F}
+# Not run
+# rmarkdown::render(input = "HBV_integration_sites_analysis.rmd", output_format = rmarkdown::html_document(theme = "readable", code_folding = "show", highlight = "kate"), 
+#                   output_file = "HBV_integration_sites_analysis.html")
+```
+
